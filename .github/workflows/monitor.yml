@@ -28,7 +28,15 @@ jobs:
         run: |
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
-          git add inventory_report.csv
+          
+          # 檢查檔案是否存在
+          if [ -f inventory_report.csv ]; then
+            git add inventory_report.csv
+            # 如果有變動才提交，否則跳過
+            git commit -m "Update inventory report" && git push || echo "No changes to commit"
+          else
+            echo "File not found, skipping commit."
+          fi
           # 如果沒有變動，這行會忽略錯誤
           git commit -m "Update inventory report" || echo "No changes"
           git push
