@@ -2,13 +2,14 @@ name: Stock Monitor
 
 on:
   schedule:
-    # 這裡設定每 1 分鐘觸發一次 (cron 語法)
     - cron: '*/1 * * * *'
-  workflow_dispatch: # 允許你手動點擊按鈕運行
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # 確保有寫入權限
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -19,7 +20,7 @@ jobs:
           python-version: '3.9'
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install pandas requests
 
       - name: Run script
         run: python main.py
@@ -29,16 +30,15 @@ jobs:
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
           
-          # 檢查檔案是否存在且是否有變動
-          if [ -f inventory_report.csv ]; then
+          # 僅當檔案存在且有變更時才執行 Git 指令
+          if [ -f "inventory_report.csv" ]; then
             git add inventory_report.csv
-            # 使用 git diff --staged 檢查是否有變動，只有變動時才 commit 和 push
             if ! git diff --quiet --staged; then
               git commit -m "Update inventory report - $(date '+%Y-%m-%d %H:%M:%S')"
               git push
             else
-              echo "No changes in inventory_report.csv, skipping commit."
+              echo "無數據變更，跳過提交。"
             fi
           else
-            echo "File inventory_report.csv not generated yet, skipping."
+            echo "檔案尚未產生，跳過提交。"
           fi
