@@ -5,7 +5,7 @@ from datetime import datetime
 
 API_URL = "https://kms.kmstation.net/prod/prodInfo?prodId=3973"
 REPORT_FILE = "inventory_report.csv"
-LAST_STOCK_FILE = "last_inventory.txt"
+LAST_STOCK_FILE = "last_inventory.csv" # 改成 CSV 格式以便儲存多個成員的數值
 
 def get_current_stock():
     try:
@@ -16,50 +16,41 @@ def get_current_stock():
         response = requests.get(API_URL, headers=headers, timeout=15)
         data = response.json()
         
-        # 加總所有 SKU 的庫存
+        # 提取成員庫存
         sku_list = data.get('skuList', [])
-        current_total = sum(item.get('stocks', 0) for item in sku_list)
-        
-        return current_total
+        current_stocks = {}
+        for item in sku_list:
+            # 簡化名稱，只取名字部分
+            name = item.get('skuName', '未知').replace('【簽售】', '').strip()
+            current_stocks[name] = item.get('stocks', 0)
+            
+        return current_stocks
     except Exception as e:
         print(f"解析錯誤: {e}")
         return None
 
 def update_inventory():
-    current_stock = get_current_stock()
-    if current_stock is None: 
-        return
+    current_stocks = get_current_stock()
+    if current_stocks is None: return
 
-    # 讀取上次庫存
-    last_stock = None
+    # 讀取上次庫存 (使用 DataFrame 讀取)
     if os.path.exists(LAST_STOCK_FILE):
-        with open(LAST_STOCK_FILE, 'r') as f:
-            try:
-                last_stock = int(f.read().strip())
-            except ValueError:
-                last_stock = None
+        last_stocks = pd.read_csv(LAST_STOCK_FILE).iloc[0].to_dict()
+    else:
+        last_stocks = {}
 
-    # 若為第一次執行，建立檔案並寫入初始值
-    if last_stock is None:
-        with open(LAST_STOCK_FILE, 'w') as f:
-            f.write(str(current_stock))
-        
-        initial_df = pd.DataFrame([{
-            '時間': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            '當前庫存': current_stock,
-            '變動數量': 0
-        }])
-        initial_df.to_csv(REPORT_FILE, index=False, encoding='utf-8-sig')
-        print(f"初始化基準庫存: {current_stock}，檔案已建立。")
-    
-    # 若庫存有變化，更新報告與基準檔
-    elif current_stock != last_stock:
-        order_qty = last_stock - current_stock
-        new_row = pd.DataFrame([{
-            '時間': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            '當前庫存': current_stock,
-            '變動數量': order_qty
-        }])
+    # 檢查是否有變動
+    has_changed = False
+    details = []
+    for name, qty in current_stocks.items():
+        if last_stocks.get(name, 0) != qty:
+            has_changed = True
+            diff = last_stocks.get(name, 0) - qty
+            details.append(f"{name}: {last_stocks.get(name, 0)} -> {qty} (變動: {diff})")
+
+    if has_changed:
+        # 記錄到總報告
+        new_row = pd.DataFrame([{**{'時間': datetime.now().strftime("%Y-%m-%d %H:%M:%S")}, **current_stocks}])
         
         if os.path.exists(REPORT_FILE):
             df = pd.read_csv(REPORT_FILE)
@@ -68,12 +59,13 @@ def update_inventory():
             df = new_row
             
         df.to_csv(REPORT_FILE, index=False, encoding='utf-8-sig')
-        with open(LAST_STOCK_FILE, 'w') as f:
-            f.write(str(current_stock))
-        print(f"庫存變動: {last_stock} -> {current_stock} (變動: {order_qty})")
-    
+        
+        # 更新基準檔
+        pd.DataFrame([current_stocks]).to_csv(LAST_STOCK_FILE, index=False, encoding='utf-8-sig')
+        print("庫存變動檢測:")
+        for d in details: print(d)
     else:
-        print(f"庫存無變化: {current_stock}")
+        print("庫存無變化")
 
 if __name__ == "__main__":
     update_inventory()
