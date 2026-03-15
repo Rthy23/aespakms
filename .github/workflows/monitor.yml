@@ -29,14 +29,16 @@ jobs:
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
           
-          # 檢查檔案是否存在
+          # 檢查檔案是否存在且是否有變動
           if [ -f inventory_report.csv ]; then
             git add inventory_report.csv
-            # 如果有變動才提交，否則跳過
-            git commit -m "Update inventory report" && git push || echo "No changes to commit"
+            # 使用 git diff --staged 檢查是否有變動，只有變動時才 commit 和 push
+            if ! git diff --quiet --staged; then
+              git commit -m "Update inventory report - $(date '+%Y-%m-%d %H:%M:%S')"
+              git push
+            else
+              echo "No changes in inventory_report.csv, skipping commit."
+            fi
           else
-            echo "File not found, skipping commit."
+            echo "File inventory_report.csv not generated yet, skipping."
           fi
-          # 如果沒有變動，這行會忽略錯誤
-          git commit -m "Update inventory report" || echo "No changes"
-          git push
