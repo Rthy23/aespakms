@@ -14,24 +14,15 @@ def get_current_stock():
             'Referer': 'http://page.kmstation.net/'
         }
         response = requests.get(API_URL, headers=headers, timeout=15)
-        
-        # 這是最關鍵的一步：將回傳的內容強制印出來
-        print(f"狀態碼: {response.status_code}")
-        print(f"原始回應內容: {response.text}")
-        
         data = response.json()
         
-        # 如果能成功解析，我們再看看它的鍵值有哪些
-        print(f"JSON 的頂層鍵值: {list(data.keys())}")
+        # 直接使用 skuList 進行加總，避免錯誤
+        sku_list = data.get('skuList', [])
+        current_total = sum(item.get('stocks', 0) for item in sku_list)
         
-        if 'data' in data:
-            sku_list = data['data']['skuList']
-            return sum(item['stocks'] for item in sku_list)
-        else:
-            return None
-            
+        return current_total
     except Exception as e:
-        print(f"API 請求錯誤: {str(e)}")
+        print(f"解析錯誤: {e}")
         return None
 
 def update_inventory():
