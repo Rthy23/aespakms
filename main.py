@@ -1,6 +1,7 @@
 import os
 import requests
 import pandas as pd
+import time
 from datetime import datetime
 
 # 設定你要監測的商品列表
@@ -25,10 +26,11 @@ def get_current_stock(url):
             current_stocks[name] = item.get('stocks', 0)
         return current_stocks
     except Exception as e:
-        print(f"解析 {url} 時發生錯誤: {e}")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] 解析 {url} 時發生錯誤: {e}")
         return None
 
 def update_inventory():
+    # 這裡放原本的單次監測邏輯
     for prod in PRODUCTS:
         prod_id = prod['id']
         url = prod['url']
@@ -39,13 +41,11 @@ def update_inventory():
         report_file = f"inventory_report_{prod_id}.csv"
         last_stock_file = f"last_inventory_{prod_id}.csv"
 
-        # 讀取上次庫存
         if os.path.exists(last_stock_file):
             last_stocks = pd.read_csv(last_stock_file).iloc[0].to_dict()
         else:
             last_stocks = {}
 
-        # 檢查變動
         has_changed = False
         details = []
         for name, qty in current_stocks.items():
@@ -62,13 +62,24 @@ def update_inventory():
                 df = pd.concat([df, new_row], ignore_index=True)
             else:
                 df = new_row
+            # 加上 utf-8-sig 確保 Excel 開啟不亂碼
             df.to_csv(report_file, index=False, encoding='utf-8-sig')
             pd.DataFrame([current_stocks]).to_csv(last_stock_file, index=False, encoding='utf-8-sig')
             
-            print(f"商品 {prod_id} 變動檢測:")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] 商品 {prod_id} 變動檢測:")
             for d in details: print(d)
         else:
-            print(f"商品 {prod_id} 庫存無變化")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] 商品 {prod_id} 庫存無變化")
 
 if __name__ == "__main__":
-    update_inventory()
+    # 設定循環參數
+    TOTAL_RUNS = 5       # 總共執行幾次監測
+    INTERVAL = 600      # 每次間隔秒數 (600秒 = 10分鐘)
+
+    for i in range(TOTAL_RUNS):
+        update_inventory()
+        
+        # 如果不是最後一次執行，就進入睡眠
+        if i < TOTAL_RUNS - 1:
+            print(f"等待 {INTERVAL} 秒後進行下一次監測... ({i+1}/{TOTAL_RUNS})")
+            time.sleep(INTERVAL)
