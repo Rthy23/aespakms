@@ -30,11 +30,8 @@ jobs:
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
           
-          # 檢查檔案是否存在
-          if [ -f "inventory_report.csv" ]; then
-            git add inventory_report.csv
-            # 檢查是否有內容異動，有異動才 commit
-            git commit -m "Update inventory report - $(date '+%Y-%m-%d %H:%M:%S')" && git push || echo "No changes to commit"
-          else
-            echo "File inventory_report.csv not created yet, skipping."
+          # 同時 add 報告檔與基準紀錄檔
+          if [ -f "inventory_report.csv" ] || [ -f "last_inventory.txt" ]; then
+            git add inventory_report.csv last_inventory.txt
+            git commit -m "Update inventory - $(date '+%Y-%m-%d %H:%M:%S')" && git push || echo "No changes to commit"
           fi
