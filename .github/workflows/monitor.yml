@@ -2,7 +2,7 @@ name: Stock Monitor
 
 on:
   schedule:
-    - cron: '*/1 * * * *'
+    - cron: '0 * * * *' # 每個整點啟動一次，啟動後會自己跑 50 分鐘
   workflow_dispatch:
 
 jobs:
