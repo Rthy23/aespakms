@@ -30,15 +30,11 @@ jobs:
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
           
-          # 僅當檔案存在且有變更時才執行 Git 指令
+          # 檢查檔案是否存在
           if [ -f "inventory_report.csv" ]; then
             git add inventory_report.csv
-            if ! git diff --quiet --staged; then
-              git commit -m "Update inventory report - $(date '+%Y-%m-%d %H:%M:%S')"
-              git push
-            else
-              echo "無數據變更，跳過提交。"
-            fi
+            # 檢查是否有內容異動，有異動才 commit
+            git commit -m "Update inventory report - $(date '+%Y-%m-%d %H:%M:%S')" && git push || echo "No changes to commit"
           else
-            echo "檔案尚未產生，跳過提交。"
+            echo "File inventory_report.csv not created yet, skipping."
           fi
