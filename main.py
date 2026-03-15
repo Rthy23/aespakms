@@ -8,21 +8,27 @@ API_URL = "https://kms.kmstation.net/prod/prodInfo?prodId=3973"
 FILE_NAME = "inventory_report.csv"
 
 def get_current_stock():
-    """從 API 獲取當前所有庫存的總和"""
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Referer': 'http://page.kmstation.net/'
         }
         response = requests.get(API_URL, headers=headers, timeout=15)
+        
+        # --- 除錯核心 ---
+        print(f"原始回傳內容 (RAW): {response.text}") 
+        # ----------------
+        
         data = response.json()
         
-        # 根據截圖，庫存分佈在 data['data']['skuList'] 中
-        # 我們將所有 SKU 的 stocks 加總，得到總庫存
-        sku_list = data['data']['skuList']
-        total_stocks = sum(item['stocks'] for item in sku_list)
-        
-        return total_stocks
+        # 根據你之前的觀察，如果資料是在 data 層級下：
+        if 'data' in data:
+            sku_list = data['data']['skuList']
+            return sum(item['stocks'] for item in sku_list)
+        else:
+            print(f"警告: JSON 結構中找不到 'data' 鍵。現有結構: {data.keys()}")
+            return None
+            
     except Exception as e:
         print(f"API 請求錯誤: {e}")
         return None
